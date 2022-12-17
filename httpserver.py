@@ -15,6 +15,9 @@ import shutil
 import time
 from http.server import HTTPServer, SimpleHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
+import logging
+
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
 
 def parse_date(ims):
     """ Parse rfc1123, rfc850 and asctime timestamps and return UTC epoch. """
@@ -99,6 +102,7 @@ def get_handler(root_path):
 
         def do_GET(self):
             """Serve a GET request."""
+            logging.debug(f'do_GET call')
             f = self.send_head()
             if f:
                 self.copyfile(f, self.wfile)
@@ -106,6 +110,7 @@ def get_handler(root_path):
     
         def do_HEAD(self):
             """Serve a HEAD request."""
+            logging.debug(f'do_HEAD call')
             f = self.send_head()
             if f:
                 f.close()
@@ -154,19 +159,6 @@ def get_handler(root_path):
             headers = dict(self.headers)
             fs = os.stat(path)
 
-            self.send_header("Content-Length", str(fs[6]))
-            self.send_header("Last-Modified", self.date_time_string(fs.st_mtime))
-            self.send_header("Accept-Ranges", "bytes")   
-
-            if 'if-modified-since' in headers:
-                ims = headers['if-modified-since'] 
-                ims = parse_date(ims.split(";")[0].strip())
-                if ims >= int(fs.st_mtime):
-                    self.send_response(304)
-                    self.send_header('Date', time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()))
-                    self.end_headers()
-                    return None
-
             if 'range' in headers:
                 self.send_response(206)
                 start, end = parse_range_header(headers, fs.st_size)
@@ -187,6 +179,20 @@ def get_handler(root_path):
                 self.send_header("Content-type", mimetype)
             #if encoding:
             #    self.send_header("Content-Encoding", encoding)
+ 
+            if 'if-modified-since' in headers:
+                ims = headers['if-modified-since'] 
+                ims = parse_date(ims.split(";")[0].strip())
+                if ims >= int(fs.st_mtime):
+                    self.send_response(304)
+                    self.send_header('Date', time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()))
+                    self.end_headers()
+                    return None
+            
+            self.send_header("Content-Length", str(fs[6]))
+            self.send_header("Last-Modified", self.date_time_string(fs.st_mtime))
+            self.send_header("Accept-Ranges", "bytes")   
+
             self.end_headers()
             result = BytesIO()
             result.write(f)
