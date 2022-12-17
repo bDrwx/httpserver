@@ -200,6 +200,7 @@ def get_handler(root_path):
             return result        
 
         def translate_path(self, path):
+            path = urllib.parse.urlparse(path).path
             path = path.split('?',1)[0]
             path = path.split('#',1)[0]
             path = posixpath.normpath(urllib.parse.unquote(path))
