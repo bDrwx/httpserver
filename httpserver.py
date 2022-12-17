@@ -13,13 +13,8 @@ import mimetypes
 import email.utils
 import shutil
 import time
-from BaseHTTPServer import HTTPServer
-from SimpleHTTPServer import SimpleHTTPRequestHandler
-from SocketServer import ThreadingMixIn
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
+from http.server import HTTPServer, SimpleHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 
 def parse_date(ims):
     """ Parse rfc1123, rfc850 and asctime timestamps and return UTC epoch. """
@@ -193,7 +188,7 @@ def get_handler(root_path):
             #if encoding:
             #    self.send_header("Content-Encoding", encoding)
             self.end_headers()
-            result = StringIO()
+            result = BytesIO()
             result.write(f)
             result.seek(0)
             return result        
@@ -201,7 +196,7 @@ def get_handler(root_path):
         def translate_path(self, path):
             path = path.split('?',1)[0]
             path = path.split('#',1)[0]
-            path = posixpath.normpath(urllib.unquote(path))
+            path = posixpath.normpath(urllib.parse.unquote(path))
             words = path.split('/')
             words = filter(None, words)
             path = root_path
@@ -215,25 +210,23 @@ def get_handler(root_path):
 
         def _test(self):
             headers = str(self.headers).split()
-            print 'Range' in self.headers
+            print('Range' in self.headers)
             for index,data in enumerate(headers):
                 if data.strip().lower().startswith('range'):#.startswith('range:'):
                     pass
     return _RerootedHTTPRequestHandler
         
-class ThreadingServer(ThreadingMixIn, HTTPServer):
-    pass
     
     
 def run(port=8080, doc_root=os.getcwd()):
-    serveraddr = ('', port)
-    serv = ThreadingServer(serveraddr, get_handler(doc_root))
-    print 'Server Started at port:', port
+    serveraddr = ('0.0.0.0', port)
+    serv = ThreadingHTTPServer(serveraddr, get_handler(doc_root))
+    print(f'Server Started at port: {port}')
     serv.serve_forever()
 
 def test():
     import doctest
-    print doctest.testmod()
+    print(doctest.testmod())
 
 if __name__=='__main__':
     run()
